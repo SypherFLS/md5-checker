@@ -5,7 +5,6 @@ bup:
 clean:
 
 gpush:
-	git add ${dir} go.mod go.sum
+	git add ${dir} backend/go.mod backend/go.sum
 	git commit -m "${msg}"
 	git push
-	
