@@ -1,0 +1,5 @@
+*main
+
+config.yaml
+.env
+!.env.example
