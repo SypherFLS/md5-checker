@@ -1,0 +1,13 @@
+server:
+  port: ":8080"
+  timeout: 10
+  retries: 3
+  rate_limit_rps: 20
+  rate_limit_burst: 40
+
+database:
+  host: "postgres"
+  user: "postgres"
+  name: "thread_service"
+  port: "5432"
+  sslmode: "disable"

@@ -13,11 +13,14 @@ func NewRouter(h *handlers.Handler, cfg config.Config, appLogger *slog.Logger) *
 	rout := gin.New()
 
 	rout.Use(
+		middlewares.TraceMiddleware(),
+		middlewares.LoggingMiddleware(appLogger),
+		middlewares.RateLimitMiddleware(cfg.Server.RateLimitRPS, cfg.Server.RateLimitBurst),
 		middlewares.TimeOutMiddleware(cfg.Server.Timeout),
 	)
-	rout.GET("/info/{md5}", h.GetHandler)
+	rout.GET("/info/:md5", h.GetHandler)
 	rout.POST("/info", h.PostHandler)
-	rout.PUT("/info/{md5}", h.PutHandler)
+	rout.PUT("/info/:md5", h.PutHandler)
 
 	return rout
 }

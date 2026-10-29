@@ -1,8 +1,9 @@
 package config
 
 import (
-	"gopkg.in/yaml.v3"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -11,9 +12,11 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port    string `yaml:"port"`
-	Timeout int    `yaml:"timeout"`
-	Retries int    `yaml:"retries"`
+	Port           string  `yaml:"port"`
+	Timeout        int     `yaml:"timeout"`
+	Retries        int     `yaml:"retries"`
+	RateLimitRPS   float64 `yaml:"rate_limit_rps"`
+	RateLimitBurst int     `yaml:"rate_limit_burst"`
 }
 
 type DatabaseConfig struct {

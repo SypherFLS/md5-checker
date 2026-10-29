@@ -26,9 +26,7 @@ type App struct {
 func NewApp(cfg config.Config) (*App, error) {
 	appLogger := logger.New()
 
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("load .env: %w", err)
-	}
+	_ = godotenv.Load()
 
 	db, err := postgres.InitDB(cfg)
 	if err != nil {

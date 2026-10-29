@@ -1,8 +1,10 @@
 services:
   backend:
-    build: ./backend/
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     env_file:
-      - backend/.env
+      - ./backend/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -10,17 +12,18 @@ services:
         condition: service_completed_successfully
     ports:
       - "8080:8080"
+    restart: unless-stopped
+
   postgres:
-    image: postgres:17
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - ${DB_PORT}
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 2s
@@ -29,15 +32,14 @@ services:
 
   migrate:
     build:
-      context: .
-      dockerfile: ./backend/Dockerfile.migrate
-
+      context: ./backend
+      dockerfile: Dockerfile.migrate
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable"
-    command: ["sh", "-c", "goose -dir ./migrations postgres \"$DATABASE_URL\" up"]
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable
+    command: ["sh", "-c", "goose -dir ./migrations postgres \"$$DATABASE_URL\" up"]
 
 volumes:
   postgres_data:
