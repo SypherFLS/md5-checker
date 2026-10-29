@@ -49,11 +49,13 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
+	validation.SanitizeCreate(&req)
 	if err := validation.Validate(req); err != nil {
 		status, body := httperr.BadRequest("Validation failed", err.Error())
 		c.JSON(status, body)
 		return
 	}
+	validation.ApplyCreateDefaults(&req)
 
 	threat, err := h.service.Create(c.Request.Context(), req)
 	if err != nil {
@@ -79,6 +81,7 @@ func (h *Handler) PutHandler(c *gin.Context) {
 		return
 	}
 
+	validation.SanitizeUpdate(&req)
 	if err := validation.Validate(req); err != nil {
 		status, body := httperr.BadRequest("Validation failed", err.Error())
 		c.JSON(status, body)

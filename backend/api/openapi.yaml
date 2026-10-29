@@ -26,14 +26,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ThreatResponse'
+        '400':
+          description: Некорректный формат MD5
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Угроза с указанным MD5 не найден
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '400':
-          description: Некорректный формат MD5
+        '429':
+          description: Превышен rate limit
           content:
             application/json:
               schema:
@@ -44,10 +50,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Таймаут запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     put:
       summary: Обновить информацию об угрозе по MD5
-      description: Заменяет информацию о существующей угрозе
+      description: |
+        Частичное обновление существующей угрозы.
+        name обязателен. Поля severity/description/category, если не переданы, сохраняют прежние значения.
+        Пустые severity/category (если переданы) сбрасываются на medium/other.
       operationId: updateThreat
       parameters:
         - name: md5
@@ -83,8 +98,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Метод не поддерживается
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Превышен rate limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Таймаут запроса
           content:
             application/json:
               schema:
@@ -93,7 +126,10 @@ paths:
   /info:
     post:
       summary: Создать новую запись об угрозе
-      description: Добавляет новую информацию об угрозе. MD5 должен быть уникальным.
+      description: |
+        Добавляет новую информацию об угрозе. MD5 должен быть уникальным.
+        Пустые severity/category получают значения по умолчанию medium/other.
+        Строковые поля обрезаются по краям; пустой name после trim отклоняется.
       operationId: createThreat
       requestBody:
         required: true
@@ -114,14 +150,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Метод не поддерживается
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Угроза с таким MD5 уже существует
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Превышен rate limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Таймаут запроса
           content:
             application/json:
               schema:
@@ -142,12 +196,14 @@ components:
           example: "d41d8cd98f00b204e9800998ecf8427e"
         name:
           type: string
-          description: Название угрозы
+          minLength: 1
+          description: Название угрозы (после trim не может быть пустым)
           example: "Trojan.Win32.Generic"
         severity:
           type: string
           enum: [low, medium, high, critical]
-          description: Уровень критичности угрозы
+          default: medium
+          description: Уровень критичности. Если не передан — medium
           example: "high"
         description:
           type: string
@@ -155,7 +211,8 @@ components:
           example: "Generic trojan behavior detected"
         category:
           type: string
-          description: Категория угрозы
+          default: other
+          description: Категория угрозы. Если не передана — other
           example: "trojan"
 
     ThreatUpdateRequest:
@@ -165,20 +222,21 @@ components:
       properties:
         name:
           type: string
-          description: Название угрозы
+          minLength: 1
+          description: Название угрозы (после trim не может быть пустым)
           example: "Trojan.Win32.Generic"
         severity:
           type: string
           enum: [low, medium, high, critical]
-          description: Уровень критичности угрозы
+          description: Если поле отсутствует — значение не меняется. Пустая строка → medium
           example: "high"
         description:
           type: string
-          description: Описание угрозы
+          description: Если поле отсутствует — значение не меняется
           example: "Generic trojan behavior detected"
         category:
           type: string
-          description: Категория угрозы
+          description: Если поле отсутствует — значение не меняется. Пустая строка → other
           example: "trojan"
 
     ThreatResponse:
@@ -206,6 +264,14 @@ components:
           type: string
           description: Категория угрозы
           example: "trojan"
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания записи
+        updated_at:
+          type: string
+          format: date-time
+          description: Время последнего обновления
 
     ErrorResponse:
       type: object

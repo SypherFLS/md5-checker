@@ -12,14 +12,16 @@ import (
 )
 
 type mockRepo struct {
-	byMD5   map[string]*models.Threat
-	create  func(ctx context.Context, threat *models.Threat) error
-	update  func(ctx context.Context, md5 string, threat *models.Threat) error
-	getErr  error
-	created []*models.Threat
+	byMD5  map[string]*models.Threat
+	create func(ctx context.Context, threat *models.Threat) error
+	update func(ctx context.Context, md5 string, threat *models.Threat) error
+	getErr error
 }
 
-func (m *mockRepo) GetByMD5(_ context.Context, md5 string) (*models.Threat, error) {
+func (m *mockRepo) GetByMD5(ctx context.Context, md5 string) (*models.Threat, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
@@ -32,6 +34,9 @@ func (m *mockRepo) GetByMD5(_ context.Context, md5 string) (*models.Threat, erro
 }
 
 func (m *mockRepo) Create(ctx context.Context, threat *models.Threat) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if m.create != nil {
 		return m.create(ctx, threat)
 	}
@@ -41,11 +46,13 @@ func (m *mockRepo) Create(ctx context.Context, threat *models.Threat) error {
 	cp := *threat
 	cp.ID = len(m.byMD5) + 1
 	m.byMD5[threat.MD5] = &cp
-	m.created = append(m.created, &cp)
 	return nil
 }
 
 func (m *mockRepo) Update(ctx context.Context, md5 string, threat *models.Threat) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if m.update != nil {
 		return m.update(ctx, md5, threat)
 	}
@@ -121,24 +128,51 @@ func TestServiceUpdateNotFound(t *testing.T) {
 	}
 }
 
-func TestServiceUpdate(t *testing.T) {
+func TestServiceUpdateMerge(t *testing.T) {
 	t.Parallel()
 
 	md5 := "d41d8cd98f00b204e9800998ecf8427e"
 	repo := &mockRepo{byMD5: map[string]*models.Threat{
-		md5: {MD5: md5, Name: "old", Severity: "low"},
+		md5: {MD5: md5, Name: "old", Severity: "low", Category: "trojan", Description: "keep-me"},
 	}}
 	svc := services.NewService(repo)
 
 	got, err := svc.Update(context.Background(), md5, dto.ThreatUpdateRequest{
-		Name:     "new",
-		Severity: "critical",
-		Category: "malware",
+		Name: "new",
 	})
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
-	if got.Name != "new" || got.Severity != "critical" || got.Category != "malware" {
+	if got.Name != "new" || got.Severity != "low" || got.Category != "trojan" || got.Description != "keep-me" {
+		t.Fatalf("merge failed: %+v", got)
+	}
+
+	sev := "critical"
+	cat := "malware"
+	got, err = svc.Update(context.Background(), md5, dto.ThreatUpdateRequest{
+		Name:     "new2",
+		Severity: &sev,
+		Category: &cat,
+	})
+	if err != nil {
+		t.Fatalf("update fields: %v", err)
+	}
+	if got.Name != "new2" || got.Severity != "critical" || got.Category != "malware" {
 		t.Fatalf("unexpected result: %+v", got)
+	}
+}
+
+func TestServiceRespectsCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	repo := &mockRepo{byMD5: map[string]*models.Threat{}}
+	svc := services.NewService(repo)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := svc.GetByMD5(ctx, "d41d8cd98f00b204e9800998ecf8427e")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("want canceled, got %v", err)
 	}
 }

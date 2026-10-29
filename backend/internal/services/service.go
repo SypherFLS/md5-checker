@@ -8,6 +8,7 @@ import (
 	"ksp/internal/dto"
 	"ksp/internal/repository"
 	"ksp/internal/repository/models"
+	"ksp/internal/validation"
 )
 
 type Service struct {
@@ -21,6 +22,10 @@ func NewService(repo repository.Repository) *Service {
 }
 
 func (s *Service) GetByMD5(ctx context.Context, md5 string) (*dto.ThreatResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	threat, err := s.repo.GetByMD5(ctx, md5)
 	if err != nil {
 		return nil, err
@@ -29,6 +34,10 @@ func (s *Service) GetByMD5(ctx context.Context, md5 string) (*dto.ThreatResponse
 }
 
 func (s *Service) Create(ctx context.Context, req dto.ThreatCreateRequest) (*dto.ThreatResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	threat := &models.Threat{
 		MD5:         strings.ToLower(req.MD5),
 		Name:        req.Name,
@@ -50,14 +59,38 @@ func (s *Service) Create(ctx context.Context, req dto.ThreatCreateRequest) (*dto
 }
 
 func (s *Service) Update(ctx context.Context, md5 string, req dto.ThreatUpdateRequest) (*dto.ThreatResponse, error) {
-	threat := &models.Threat{
-		Name:        req.Name,
-		Severity:    req.Severity,
-		Description: req.Description,
-		Category:    req.Category,
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
-	if err := s.repo.Update(ctx, md5, threat); err != nil {
+	existing, err := s.repo.GetByMD5(ctx, md5)
+	if err != nil {
+		return nil, err
+	}
+
+	existing.Name = req.Name
+
+	if req.Severity != nil {
+		sev := *req.Severity
+		if sev == "" {
+			sev = validation.DefaultSeverity
+		}
+		existing.Severity = sev
+	}
+
+	if req.Description != nil {
+		existing.Description = *req.Description
+	}
+
+	if req.Category != nil {
+		cat := *req.Category
+		if cat == "" {
+			cat = validation.DefaultCategory
+		}
+		existing.Category = cat
+	}
+
+	if err := s.repo.Update(ctx, md5, existing); err != nil {
 		return nil, err
 	}
 
@@ -76,5 +109,7 @@ func toResponse(threat *models.Threat) *dto.ThreatResponse {
 		Severity:    threat.Severity,
 		Description: threat.Description,
 		Category:    threat.Category,
+		CreatedAt:   threat.CreatedAt,
+		UpdatedAt:   threat.UpdatedAt,
 	}
 }

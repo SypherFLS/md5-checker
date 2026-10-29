@@ -13,6 +13,10 @@ import (
 )
 
 func (r *Repo) GetByMD5(ctx context.Context, md5 string) (*models.Threat, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var threat models.Threat
 	err := r.db.WithContext(ctx).Where("md5 = ?", strings.ToLower(md5)).First(&threat).Error
 	if err != nil {
@@ -25,6 +29,10 @@ func (r *Repo) GetByMD5(ctx context.Context, md5 string) (*models.Threat, error)
 }
 
 func (r *Repo) Create(ctx context.Context, threat *models.Threat) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	threat.MD5 = strings.ToLower(threat.MD5)
 	err := r.db.WithContext(ctx).Create(threat).Error
 	if err != nil {
@@ -41,6 +49,10 @@ func (r *Repo) Create(ctx context.Context, threat *models.Threat) error {
 }
 
 func (r *Repo) Update(ctx context.Context, md5 string, threat *models.Threat) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	result := r.db.WithContext(ctx).
 		Model(&models.Threat{}).
 		Where("md5 = ?", strings.ToLower(md5)).

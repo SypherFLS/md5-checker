@@ -1,6 +1,7 @@
 package httperr
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -23,6 +24,11 @@ func FromService(err error, md5 string) (int, dto.ErrorResponse) {
 			Message: "Threat already exists",
 			Details: "Threat with MD5 " + md5 + " already exists",
 		}
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+		return http.StatusGatewayTimeout, dto.ErrorResponse{
+			Message: "Request timeout",
+			Details: "Operation canceled due to request timeout",
+		}
 	default:
 		return http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal server error",
@@ -35,5 +41,12 @@ func BadRequest(message, details string) (int, dto.ErrorResponse) {
 	return http.StatusBadRequest, dto.ErrorResponse{
 		Message: message,
 		Details: details,
+	}
+}
+
+func MethodNotAllowed() (int, dto.ErrorResponse) {
+	return http.StatusMethodNotAllowed, dto.ErrorResponse{
+		Message: "Method not allowed",
+		Details: "HTTP method is not supported for this endpoint",
 	}
 }

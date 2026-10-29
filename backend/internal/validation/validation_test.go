@@ -50,3 +50,38 @@ func TestValidateCreateRequest(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 }
+
+func TestSanitizeAndDefaults(t *testing.T) {
+	t.Parallel()
+
+	req := dto.ThreatCreateRequest{
+		MD5:      "  d41d8cd98f00b204e9800998ecf8427e  ",
+		Name:     "  Trojan  ",
+		Severity: "  ",
+		Category: "",
+	}
+	validation.SanitizeCreate(&req)
+	if req.MD5 != "d41d8cd98f00b204e9800998ecf8427e" || req.Name != "Trojan" {
+		t.Fatalf("sanitize failed: %+v", req)
+	}
+	if err := validation.Validate(req); err != nil {
+		t.Fatalf("validate after sanitize: %v", err)
+	}
+	validation.ApplyCreateDefaults(&req)
+	if req.Severity != "medium" || req.Category != "other" {
+		t.Fatalf("defaults failed: %+v", req)
+	}
+}
+
+func TestEmptyNameAfterTrim(t *testing.T) {
+	t.Parallel()
+
+	req := dto.ThreatCreateRequest{
+		MD5:  "d41d8cd98f00b204e9800998ecf8427e",
+		Name: "   ",
+	}
+	validation.SanitizeCreate(&req)
+	if err := validation.Validate(req); err == nil {
+		t.Fatal("expected empty name to fail validation")
+	}
+}
