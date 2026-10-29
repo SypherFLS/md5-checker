@@ -1,8 +1,9 @@
 package validation
 
-import ()
+import "github.com/go-playground/validator/v10"
 
-type Validator struct {
+var validate = validator.New()
+
+func Validate(v any) error {
+	return validate.Struct(v)
 }
-
-func Validate()
